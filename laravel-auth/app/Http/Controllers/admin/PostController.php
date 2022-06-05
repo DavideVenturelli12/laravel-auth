@@ -4,10 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 use App\Post;
 
-class PostControll extends Controller
+class PostController extends Controller
 {
     /**
      * Display a listing of the resource.
@@ -42,24 +43,22 @@ class PostControll extends Controller
     {
         //
         $request->validate([
-            'title'=>'required|max:250',
-            'content'=>'required'
+            'title' => 'required|max:250',
+            'content' => 'required|min:5|max:100'
+        ], [
+            'title.required' => 'Il titolo deve essere valorizzato',
+            'content.required' => 'Il contenuto deve essere valorizzato',
+            'title.max' => 'Hai superato i :attribute caratteri',
+            'content.min' => 'Minimo 5 caratteri'
+
         ]);
 
         $postData = $request->all();
         $newPost = new Post();
         $newPost -> fill($postData);
-        $slug = Str::slug($newPost->title);
 
-        $postFound = Post::where('slug', $slug)->first();
-        $counter= 1;
-        while($postFound){
-            $alternativeSlug = $slug . '_' . $counter;
-            $counter++;
-            $postFound = Post::where('slug', $alternativeSlug)->first();
-        }
+        $newPost->slug = Post::convertToSlug($newPost->title);
 
-        $newPost -> slug = $alternativeSlug;
         $newPost -> save();
         return redirect()-> Route('admin.posts.index');
     }
@@ -73,6 +72,11 @@ class PostControll extends Controller
     public function show($id)
     {
         //
+        $post= Post::find($id);
+        if (!$id) {
+        abort(404);
+        }
+        return view('admin.posts.show', compact('post'));
     }
 
     /**
@@ -84,6 +88,11 @@ class PostControll extends Controller
     public function edit($id)
     {
         //
+        $post= Post::find($id);
+        if (!$id) {
+        abort(404);
+        }
+        return view('admin.posts.edit', compact('post'));
     }
 
     /**
@@ -96,6 +105,18 @@ class PostControll extends Controller
     public function update(Request $request, $id)
     {
         //
+        $request->validate([
+            'title' => 'required|max:250',
+            'content' => 'required',
+        ]);
+        $post = Post::find($id);
+        $postData = $request->all();
+
+        $post->fill($postData);
+        $post->slug = Post::convertToSlug($post->title);
+
+        $post->update();
+        return redirect()->route('admin.posts.index',);
     }
 
     /**
@@ -107,5 +128,8 @@ class PostControll extends Controller
     public function destroy($id)
     {
         //
+        $posts= Post::find($id);
+        $posts->delete();
+        return redirect()->route('admin.posts.index');
     }
 }
